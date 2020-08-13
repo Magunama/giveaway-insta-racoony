@@ -6,7 +6,10 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from utils.checks import FileCheck
 import json
+import sys
 
+
+opts = Options()
 
 def load_settings():
     fchk = FileCheck()
@@ -16,20 +19,38 @@ def load_settings():
         print("[INFO] Loaded settings.")
         return json.load(f)
 
+def parse_arguments():      
+    """
+    ################### Read ######################
+    
+        -h stands for headless mode
+        -hot stands for checking the posts in hot
+
+    """
+    global opts
+    opts.start = 9
+
+    for arg in sys.argv:
+
+        if arg == "-h":
+            opts.add_argument("--headless")
+        elif arg == "-hot":
+            opts.start = 0
+
 
 class InstagramBot:
     def __init__(self, username=None, password=None):
-        self.settings = load_settings()
 
-        self.username, self.password = self.process_credentials(username, password)
-
-        opts = Options()
-        # opts.add_argument("--headless")
+        parse_arguments()
+    
         if os.name == "posix":
             exec_path = "./chromedriver"
         else:
             exec_path = "chromedriver.exe"
 
+        self.settings = load_settings()
+        self.username, self.password = self.process_credentials(username, password)
+        self.comm_counter = 0
         self.browser = webdriver.Chrome(options=opts, executable_path=exec_path)
 
     def process_credentials(self, username, password):
@@ -106,7 +127,8 @@ class InstagramBot:
         return [follow_btn, like_btn, comm_box]
 
     def process_posts(self, links):
-        for i in range(9, len(links)):
+
+        for i in range(opts.start, len(links)):
             post_url = links[i]
             # todo: check if post was previously seen
             print(post_url)
@@ -124,8 +146,19 @@ class InstagramBot:
                 return
             comm_box.click()
             comm_box = self.browser.find_element_by_css_selector("form textarea")
-            comms = random.choice(self.settings["base_comments"])
+            comm_choice = random.choice(self.settings["base_comments"])
+
+            post_button = self.browser.find_element_by_css_selector("form button")
             # todo: send random number of comments
-            comm_box.send_keys(comms)
-            comm_box.send_keys(Keys.ENTER)
+            comm_box.send_keys(comm_choice)
+            post_button.click()
+
+            self.comm_counter += 1
+
+            if self.comm_counter == 5:
+                self.comm_counter = 0
+                print ("Waiting 10 seconds to avoid soft ban")
+                time.sleep(10)
+
             time.sleep(2)
+
