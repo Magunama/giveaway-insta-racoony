@@ -165,3 +165,48 @@ class InstagramBot:
             self.follow(buttons)
             self.like(buttons)
             self.comment()
+
+    def get_following_list(self, username, num_of_users_to_delete):
+        #todo: make something to scroll when opening followers list so you can get more
+        time.sleep(2)
+        self.browser.get("https://www.instagram.com/" + username + '/')
+
+        following = self.browser.find_elements_by_css_selector("ul li a") [1]
+        following.click()
+        time.sleep(2)
+
+        followers_list = self.browser.find_element_by_css_selector('div[role=\'dialog\'] ul')
+        following_num = len(followers_list.find_elements_by_css_selector('li'))
+        print(following_num)
+        followers_list.click()
+
+        following_list = []
+        for user in followers_list.find_elements_by_css_selector('li'):
+            link = user.find_element_by_css_selector('a').get_attribute('href')
+            print(link)
+            following_list.append(link)
+
+        return following_list
+
+    def unfollow_list(self, username, num):
+
+        global unfollowButton
+        links = self.get_following_list(username, num)
+
+        for user in links:
+            self.browser.get(user)
+            time.sleep(2)
+
+            buttons = self.browser.find_elements_by_css_selector('button')
+
+            for button in buttons:
+                if (button.text == "Following"):
+                    unfollowButton = button
+
+            if (unfollowButton.text == 'Following'):
+                unfollowButton.click()
+                time.sleep(2)
+                confirmButton = self.browser.find_element_by_xpath('//button[text() = "Unfollow"]')
+                confirmButton.click()
+            else:
+                print("Oops")
