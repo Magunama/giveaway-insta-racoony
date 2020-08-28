@@ -1,13 +1,15 @@
-import os
-import time
-import random
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+
 from utils.checks import FileCheck
+from cookies import Cookies
+
 import json
 import sys
-
+import os
+import time
+import random
 
 opts = Options()
 
@@ -38,10 +40,9 @@ def parse_arguments():
         elif arg == "-hot":
             opts.start = 0
 
-# todo: clear follow list
-
 
 class InstagramBot:
+    # todo: clear follow list
     def __init__(self, username=None, password=None):
 
         parse_arguments()
@@ -55,6 +56,7 @@ class InstagramBot:
         self.username, self.password = self.process_credentials(username, password)
         self.comm_counter = 0
         self.browser = webdriver.Chrome(options=opts, executable_path=exec_path)
+        self.cookies = Cookies(self.browser)
 
     def process_credentials(self, username, password):
         if not username:
@@ -81,9 +83,27 @@ class InstagramBot:
         pass_input.send_keys(Keys.ENTER)
         time.sleep(2)
 
+        # saving login details
+        save_login_btn = self.browser.find_element_by_css_selector("button")
+        save_login_btn.click()
+        self.cookies.save()
+
     def exit(self):
         """Exit the bot process"""
+        time.sleep(5)
         self.browser.quit()
+
+    def inject_cookies(self):
+        """Insert previous existing cookies"""
+        self.cookies.load()
+        prev_cookies = self.cookies.get()
+        if not prev_cookies:
+            self.sign_in()
+        else:
+            try:
+                self.cookies.inject()
+            except Cookies.TooOldException:
+                self.sign_in()
 
     def search_giveaway(self):
         """Retrieve a list of links of the latest posts tagged #giveaway"""
