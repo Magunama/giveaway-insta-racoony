@@ -134,6 +134,7 @@ class InstagramBot:
 
     @staticmethod
     def like(buttons):
+        """Like a post"""
         time.sleep(2)
 
         like_btn = buttons[2]
@@ -145,12 +146,14 @@ class InstagramBot:
 
     @staticmethod
     def follow(buttons):
+        """Folow a post's author"""
         follow_btn = buttons[0]
         if follow_btn.text.lower() == "follow":
             follow_btn.click()
             time.sleep(2)
 
     def comment(self):
+        """Comment on a post"""
         comm_box = self.browser.find_elements_by_css_selector("form textarea")
         if not comm_box:
             return
@@ -186,47 +189,60 @@ class InstagramBot:
             self.like(buttons)
             self.comment()
 
-    def get_following_list(self, username, num_of_users_to_delete):
-        #todo: make something to scroll when opening followers list so you can get more
+    def get_following(self):
+        """Retrieves links to the users the bot is following"""
+        self.browser.get(f"https://www.instagram.com/{self.username}/")
+        time.sleep(1)
+
+        following_btn = self.browser.find_elements_by_css_selector("ul li a")[1]
+        following_btn.click()
+        time.sleep(1)
+
+        following_window = self.browser.find_element_by_css_selector('div[role=\'dialog\'] ul')
+        following_window.click()
         time.sleep(2)
-        self.browser.get("https://www.instagram.com/" + username + '/')
 
-        following = self.browser.find_elements_by_css_selector("ul li a") [1]
-        following.click()
-        time.sleep(2)
+        # todo: scroll till the end of the page
+        height = following_window.size["height"]
+        action_chain = webdriver.ActionChains(self.browser)
+        while True:
+            action_chain.send_keys(Keys.SPACE).perform()
+            time.sleep(5)
 
-        followers_list = self.browser.find_element_by_css_selector('div[role=\'dialog\'] ul')
-        following_num = len(followers_list.find_elements_by_css_selector('li'))
-        print(following_num)
-        followers_list.click()
+            following_window = self.browser.find_element_by_css_selector('div[role=\'dialog\'] ul')
+            following_window.click()
 
-        following_list = []
-        for user in followers_list.find_elements_by_css_selector('li'):
+            new_height = following_window.size["height"]
+            if new_height == height:
+                break
+            height = new_height
+
+        following_list = following_window.find_elements_by_css_selector("li")
+        following_links = list()
+        for user in following_list:
             link = user.find_element_by_css_selector('a').get_attribute('href')
-            print(link)
-            following_list.append(link)
+            following_links.append(link)
+        return following_links
 
-        return following_list
+    def unfollow(self, user_link):
+        self.browser.get(user_link)
+        time.sleep(2)
 
-    def unfollow_list(self, username, num):
+        unfollow_btn_path = "/html/body/div[1]/section/main/div/header/section/div[1]/div[2]/div/span/span[1]/button"
+        unfollow_btn = self.browser.find_elements_by_xpath(unfollow_btn_path)
+        if not unfollow_btn:
+            return
+        unfollow_btn[0].click()
+        time.sleep(1)
 
-        global unfollowButton
-        links = self.get_following_list(username, num)
+        confirm_btn_path = "/html/body/div[4]/div/div/div/div[3]/button[1]"
+        confirm_btn = self.browser.find_element_by_xpath(confirm_btn_path)
+        confirm_btn.click()
 
-        for user in links:
-            self.browser.get(user)
-            time.sleep(2)
-
-            buttons = self.browser.find_elements_by_css_selector('button')
-
-            for button in buttons:
-                if (button.text == "Following"):
-                    unfollowButton = button
-
-            if (unfollowButton.text == 'Following'):
-                unfollowButton.click()
-                time.sleep(2)
-                confirmButton = self.browser.find_element_by_xpath('//button[text() = "Unfollow"]')
-                confirmButton.click()
-            else:
-                print("Oops")
+    def unfollow_many(self, count=1):
+        following_links = self.get_following()
+        following_links = enumerate(reversed(following_links))
+        for index, user_link in following_links:
+            self.unfollow(user_link)
+            if index == count - 1:
+                break
